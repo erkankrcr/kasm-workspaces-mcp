@@ -16,6 +16,7 @@ from typing import Any
 # it would against the mcp 1.x API the task brief was written against.
 from mcp.server.mcpserver import MCPServer as FastMCP
 
+from kasm_mcp.admin_unofficial.client import KasmUnofficialAdminClient
 from kasm_mcp.api.client import KasmAPIClient
 from kasm_mcp.api.http import KasmAPIError
 from kasm_mcp.config import KasmConfig
@@ -275,6 +276,65 @@ async def remove_user_from_group_logic(client: KasmAPIClient, config: KasmConfig
 
 
 # ---------------------------------------------------------------------------
+# Unofficial admin-panel logic functions
+# ---------------------------------------------------------------------------
+
+_UNOFFICIAL_WARNING = "⚠️ Unofficial/undocumented Kasm API — may break on any Kasm upgrade. Requires KASM_UNOFFICIAL_API=true."
+
+
+async def get_registries_logic(unofficial_client: KasmUnofficialAdminClient) -> dict:
+    try:
+        result = await unofficial_client.get_registries()
+    except KasmAPIError as e:
+        return {"success": False, "error": str(e)}
+    return {"success": True, "registries": result.get("registries", [])}
+
+
+async def create_registry_logic(
+    unofficial_client: KasmUnofficialAdminClient, *, url: str, username: str | None = None, password: str | None = None
+) -> dict:
+    try:
+        result = await unofficial_client.create_registry(url=url, username=username, password=password)
+    except KasmAPIError as e:
+        return {"success": False, "error": str(e)}
+    return {"success": True, "registry": result.get("registry")}
+
+
+async def delete_registry_logic(unofficial_client: KasmUnofficialAdminClient, *, registry_id: str) -> dict:
+    try:
+        await unofficial_client.delete_registry(registry_id=registry_id)
+    except KasmAPIError as e:
+        return {"success": False, "error": str(e)}
+    return {"success": True, "registry_id": registry_id}
+
+
+async def create_workspace_image_logic(
+    unofficial_client: KasmUnofficialAdminClient, *, image_name: str, friendly_name: str, **fields: Any
+) -> dict:
+    try:
+        result = await unofficial_client.create_workspace_image(image_name=image_name, friendly_name=friendly_name, **fields)
+    except KasmAPIError as e:
+        return {"success": False, "error": str(e)}
+    return {"success": True, "image": result.get("image")}
+
+
+async def update_workspace_image_logic(unofficial_client: KasmUnofficialAdminClient, *, image_id: str, **fields: Any) -> dict:
+    try:
+        result = await unofficial_client.update_workspace_image(image_id=image_id, **fields)
+    except KasmAPIError as e:
+        return {"success": False, "error": str(e)}
+    return {"success": True, "image": result.get("image")}
+
+
+async def delete_workspace_image_logic(unofficial_client: KasmUnofficialAdminClient, *, image_id: str) -> dict:
+    try:
+        await unofficial_client.delete_workspace_image(image_id=image_id)
+    except KasmAPIError as e:
+        return {"success": False, "error": str(e)}
+    return {"success": True, "image_id": image_id}
+
+
+# ---------------------------------------------------------------------------
 # FastMCP wiring
 # ---------------------------------------------------------------------------
 
@@ -401,5 +461,38 @@ def build_server(client: KasmAPIClient, config: KasmConfig) -> FastMCP:
         async def remove_user_from_group(user_id: str, group_id: str) -> dict:
             """⚠️ Admin-privileged action — requires an API key with User Management permissions. Not recommended for shared or production Kasm deployments. Remove a user from a Kasm group."""
             return await remove_user_from_group_logic(client, config, user_id=user_id, group_id=group_id)
+
+    if config.unofficial_api:
+        unofficial_client = KasmUnofficialAdminClient(config.api_url, config.api_key, config.api_secret)
+
+        @mcp.tool()
+        async def get_registries() -> dict:
+            """⚠️ Unofficial/undocumented Kasm API — may break on any Kasm upgrade. Requires KASM_UNOFFICIAL_API=true. List configured Docker registries."""
+            return await get_registries_logic(unofficial_client)
+
+        @mcp.tool()
+        async def create_registry(url: str, username: str | None = None, password: str | None = None) -> dict:
+            """⚠️ Unofficial/undocumented Kasm API — may break on any Kasm upgrade. Requires KASM_UNOFFICIAL_API=true. Register a Docker registry."""
+            return await create_registry_logic(unofficial_client, url=url, username=username, password=password)
+
+        @mcp.tool()
+        async def delete_registry(registry_id: str) -> dict:
+            """⚠️ Unofficial/undocumented Kasm API — may break on any Kasm upgrade. Requires KASM_UNOFFICIAL_API=true. Delete a configured Docker registry."""
+            return await delete_registry_logic(unofficial_client, registry_id=registry_id)
+
+        @mcp.tool()
+        async def create_workspace_image(image_name: str, friendly_name: str, **fields: Any) -> dict:
+            """⚠️ Unofficial/undocumented Kasm API — may break on any Kasm upgrade. Requires KASM_UNOFFICIAL_API=true. Register a new workspace image."""
+            return await create_workspace_image_logic(unofficial_client, image_name=image_name, friendly_name=friendly_name, **fields)
+
+        @mcp.tool()
+        async def update_workspace_image(image_id: str, **fields: Any) -> dict:
+            """⚠️ Unofficial/undocumented Kasm API — may break on any Kasm upgrade. Requires KASM_UNOFFICIAL_API=true. Update an existing workspace image's fields."""
+            return await update_workspace_image_logic(unofficial_client, image_id=image_id, **fields)
+
+        @mcp.tool()
+        async def delete_workspace_image(image_id: str) -> dict:
+            """⚠️ Unofficial/undocumented Kasm API — may break on any Kasm upgrade. Requires KASM_UNOFFICIAL_API=true. Delete a workspace image."""
+            return await delete_workspace_image_logic(unofficial_client, image_id=image_id)
 
     return mcp
