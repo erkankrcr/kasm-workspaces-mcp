@@ -65,3 +65,46 @@ class KasmAPIClient:
 
     async def resume_kasm(self, *, kasm_id: str, user_id: str) -> dict:
         return await self._json("POST", "/api/public/resume_kasm", {"kasm_id": kasm_id, "user_id": user_id})
+
+    async def get_kasm_screenshot(
+        self, *, kasm_id: str, user_id: str, width: int | None = None, height: int | None = None
+    ) -> bytes:
+        data: dict[str, Any] = {"kasm_id": kasm_id, "user_id": user_id}
+        if width:
+            data["width"] = width
+        if height:
+            data["height"] = height
+        return await self._binary("POST", "/api/public/get_kasm_screenshot", data)
+
+    async def exec_command(
+        self,
+        *,
+        kasm_id: str,
+        user_id: str,
+        command: str,
+        working_dir: str | None = None,
+        user: str | None = None,
+    ) -> None:
+        """Fire-and-forget: the real Kasm API never returns stdout/exit_code
+        for this call, so this method's return is always ``None`` on success;
+        it only raises ``KasmAPIError`` if the *dispatch itself* failed."""
+        exec_config: dict[str, Any] = {"cmd": command}
+        if working_dir:
+            exec_config["workdir"] = working_dir
+        if user:
+            exec_config["user"] = user
+        await self._json(
+            "POST",
+            "/api/public/exec_command_kasm",
+            {"kasm_id": kasm_id, "user_id": user_id, "exec_config": exec_config},
+        )
+        return None
+
+    async def join_kasm(self, *, share_id: str, user_id: str | None = None) -> dict:
+        data: dict[str, Any] = {"share_id": share_id}
+        if user_id:
+            data["user_id"] = user_id
+        return await self._json("POST", "/api/public/join_kasm", data)
+
+    async def get_images(self) -> dict:
+        return await self._json("POST", "/api/public/get_images")
