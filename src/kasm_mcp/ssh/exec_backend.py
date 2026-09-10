@@ -5,6 +5,8 @@ host (same Docker network for a container_ip, or a routable override)."""
 
 from __future__ import annotations
 
+import shlex
+
 import asyncssh
 
 
@@ -38,7 +40,7 @@ async def ssh_exec(
     timeout: float = 30.0,
 ) -> dict:
     """Run a command over SSH and return real stdout/stderr/exit_code."""
-    full_command = f"cd {working_dir!r} && {command}" if working_dir else command
+    full_command = f"cd {shlex.quote(working_dir)} && {command}" if working_dir else command
     async with asyncssh.connect(
         host, port=port, username=username, client_keys=[key_path], known_hosts=None
     ) as conn:
