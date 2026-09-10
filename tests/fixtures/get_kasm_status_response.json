@@ -1,0 +1,22 @@
+{
+  "kasm": {
+    "kasm_id": "b057c3754cb6499cb8d3afeadd6bf0fc",
+    "operational_status": "running",
+    "container_ip": "172.18.0.4",
+    "host": "10.0.0.120",
+    "port": 443,
+    "share_id": null,
+    "view_only_token": "",
+    "username": "claude",
+    "user_id": "39b318301e504d1c90fe816f89ff6612",
+    "image": {
+      "image_id": "c7af5cfaf7a649b69afd948f11199bd1",
+      "name": "kasmweb/chromium:1.19.0",
+      "friendly_name": "Chromium"
+    },
+    "port_map": {
+      "vnc": {"path": "desktop/b057c375-4cb6-499c-b8d3-afeadd6bf0fc/vnc", "port": 443}
+    }
+  },
+  "current_time": "2026-09-10T12:52:49Z"
+}
