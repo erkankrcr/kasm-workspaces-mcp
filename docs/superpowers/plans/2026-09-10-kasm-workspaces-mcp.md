@@ -19,6 +19,7 @@
 - All async HTTP goes through `api/http.py`'s shared primitives — no duplicate request-building logic.
 - License: MIT. Repo: `kasm-workspaces-mcp` (local path `/home/ekaracar/kasm-workspaces-mcp`, already `git init`'d with the spec committed as `12946f2`).
 - `aiohttp` is pinned `<3.14` (added during Task 4, see ledger): aioresponses 0.7.9 — the latest release on PyPI — raises `TypeError: ClientResponse.__init__() missing 1 required keyword-only argument: 'stream_writer'` against aiohttp>=3.14, confirmed by direct reproduction. Every task using `aioresponses` in its tests depends on this pin.
+- `mcp` requires `>=2.0.0` (amended during Task 7, see ledger): mcp 2.x renamed `mcp.server.fastmcp.FastMCP` to `mcp.server.mcpserver.MCPServer` and removed the old import path. `server.py` imports it as `from mcp.server.mcpserver import MCPServer as FastMCP` — confirmed the `_tool_manager.list_tools()` introspection pattern Tasks 8-10's tests use still works identically under the new class.
 
 ---
 
@@ -77,7 +78,7 @@ readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "MIT" }
 dependencies = [
-    "mcp>=1.0.0",
+    "mcp>=2.0.0",
     "aiohttp>=3.9.0,<3.14",
 ]
 
