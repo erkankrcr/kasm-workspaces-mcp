@@ -141,6 +141,52 @@ async def execute_kasm_command_logic(
     }
 
 
+async def execute_kasm_command_ssh_logic(
+    client: KasmAPIClient,
+    config: KasmConfig,
+    *,
+    kasm_id: str,
+    command: str,
+    working_dir: str | None = None,
+    ssh_host: str | None = None,
+) -> dict:
+    from kasm_mcp.ssh.exec_backend import SSHNotConfiguredError, resolve_ssh_host, ssh_exec
+
+    try:
+        validate_command(command)
+    except SecurityError as e:
+        return {"success": False, "error": str(e), "error_type": "security"}
+
+    if not config.ssh_enabled or not config.ssh_key_path:
+        return {
+            "success": False,
+            "error": "SSH exec is not configured (set KASM_SSH_ENABLED=true and KASM_SSH_KEY_PATH).",
+            "error_type": "not_configured",
+        }
+
+    container_ip: str | None = None
+    try:
+        status = await client.get_kasm_status(kasm_id=kasm_id, user_id=config.user_id)
+        container_ip = status.get("kasm", status).get("container_ip")
+    except KasmAPIError:
+        pass  # host resolution can still succeed via explicit param/override
+
+    try:
+        host = resolve_ssh_host(explicit_host=ssh_host, override=config.ssh_host_override, container_ip=container_ip)
+    except SSHNotConfiguredError as e:
+        return {"success": False, "error": str(e), "error_type": "not_configured"}
+
+    try:
+        result = await ssh_exec(
+            host=host, port=22, username=config.ssh_user, key_path=config.ssh_key_path,
+            command=command, working_dir=working_dir,
+        )
+    except Exception as e:  # noqa: BLE001 - surface any transport/auth failure to the caller
+        return {"success": False, "error": f"SSH exec failed: {e}"}
+
+    return {"success": True, **result}
+
+
 async def get_available_workspaces_logic(client: KasmAPIClient, config: KasmConfig) -> dict:
     try:
         result = await client.get_images()
@@ -214,5 +260,20 @@ def build_server(client: KasmAPIClient, config: KasmConfig) -> FastMCP:
     async def get_available_workspaces() -> dict:
         """List available workspace images."""
         return await get_available_workspaces_logic(client, config)
+
+    if config.ssh_enabled:
+
+        @mcp.tool()
+        async def execute_kasm_command_ssh(
+            kasm_id: str, command: str, working_dir: str | None = None, ssh_host: str | None = None
+        ) -> dict:
+            """Run a command via SSH and return real stdout/stderr/exit_code.
+
+            Only registered when KASM_SSH_ENABLED=true. Requires the MCP
+            server to have network access to the session's host.
+            """
+            return await execute_kasm_command_ssh_logic(
+                client, config, kasm_id=kasm_id, command=command, working_dir=working_dir, ssh_host=ssh_host
+            )
 
     return mcp
