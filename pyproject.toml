@@ -8,6 +8,7 @@ license = { text = "MIT" }
 dependencies = [
     "mcp>=2.0.0",
     "aiohttp>=3.9.0,<3.14",
+    "python-dotenv>=1.0.0",
 ]
 
 [project.optional-dependencies]

@@ -36,6 +36,11 @@ Optional:
 | `KASM_SSH_USER` | `kasm-user` | |
 | `KASM_SSH_HOST_OVERRIDE` | — | use when `container_ip` isn't reachable from where this server runs |
 
+Any of these can also go in a `.env` file in the directory you run `kasm-mcp`
+from (see `.env.example`) — it's loaded automatically and never overrides a
+variable already set in the real environment (e.g. by an MCP client's own
+`env` config in `.mcp.json`).
+
 ## Run
 
 ```bash

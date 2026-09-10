@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import asyncio
 
+from dotenv import find_dotenv, load_dotenv
+
 from kasm_mcp.admin_unofficial.client import KasmUnofficialAdminClient
 from kasm_mcp.api.client import KasmAPIClient
 from kasm_mcp.config import load_config
@@ -31,6 +33,13 @@ async def _run() -> None:
 
 
 def main() -> None:
+    # Loads a .env file from the current working directory (or a parent of
+    # it) into os.environ, without overriding variables already set there
+    # (e.g. by an MCP client's own "env" config). find_dotenv(usecwd=True)
+    # is required: the plain default search walks up from this installed
+    # file's location (inside the venv) rather than from where the command
+    # was invoked.
+    load_dotenv(find_dotenv(usecwd=True))
     asyncio.run(_run())
 
 
