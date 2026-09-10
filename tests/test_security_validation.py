@@ -16,6 +16,8 @@ from kasm_mcp.security.validation import SecurityError, validate_command, valida
         "cat file > out.txt",
         "cat < file",
         "cd ../../etc",
+        "echo a\necho b",
+        "sleep 1 & echo done",
     ],
 )
 def test_validate_command_rejects_dangerous_patterns(command):

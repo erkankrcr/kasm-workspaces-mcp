@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import os
 
-_DANGEROUS_COMMAND_PATTERNS = ("|", ";", "&&", "||", "`", "$(", "${", ">>", ">", "<", "..")
+_DANGEROUS_COMMAND_PATTERNS = ("|", ";", "&&", "||", "`", "$(", "${", ">>", ">", "<", "..", "\n", "&")
 
 
 class SecurityError(Exception):
@@ -12,7 +12,12 @@ class SecurityError(Exception):
 
 
 def validate_command(command: str) -> None:
-    """Reject commands using shell metacharacters that enable chaining/injection.
+    """Reject commands using shell metacharacters or path-traversal tokens.
+
+    Blocks two categories:
+    - Shell chaining/injection metacharacters (|, ;, &&, ||, `, $(...), ${...},
+      >>, >, <, newline, &) that enable command chaining or injection.
+    - Path-traversal tokens (..) that could escape intended directories.
 
     This is deliberately conservative: callers needing pipelines must run
     a pre-written script file instead of relying on shell chaining here.
