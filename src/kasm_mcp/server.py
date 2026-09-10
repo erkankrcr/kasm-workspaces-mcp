@@ -361,7 +361,7 @@ def build_server(client: KasmAPIClient, config: KasmConfig) -> FastMCP:
         async def create_kasm_user(
             username: str, password: str, first_name: str = "", last_name: str = "", group_id: str | None = None
         ) -> dict:
-            f"""{_ADMIN_WARNING} Create a new Kasm user."""
+            """⚠️ Admin-privileged action — requires an API key with User Management permissions. Not recommended for shared or production Kasm deployments. Create a new Kasm user."""
             return await create_kasm_user_logic(
                 client, config, username=username, password=password,
                 first_name=first_name, last_name=last_name, group_id=group_id,
@@ -369,37 +369,37 @@ def build_server(client: KasmAPIClient, config: KasmConfig) -> FastMCP:
 
         @mcp.tool()
         async def update_kasm_user(user_id: str, **fields: Any) -> dict:
-            f"""{_ADMIN_WARNING} Update fields on an existing Kasm user."""
+            """⚠️ Admin-privileged action — requires an API key with User Management permissions. Not recommended for shared or production Kasm deployments. Update fields on an existing Kasm user."""
             return await update_kasm_user_logic(client, config, user_id=user_id, **fields)
 
         @mcp.tool()
         async def delete_kasm_user(user_id: str, force: bool = False) -> dict:
-            f"""{_ADMIN_WARNING} Delete a Kasm user."""
+            """⚠️ Admin-privileged action — requires an API key with User Management permissions. Not recommended for shared or production Kasm deployments. Delete a Kasm user."""
             return await delete_kasm_user_logic(client, config, user_id=user_id, force=force)
 
         @mcp.tool()
         async def get_kasm_user(user_id: str | None = None, username: str | None = None) -> dict:
-            f"""{_ADMIN_WARNING} Look up a Kasm user by id or username."""
+            """⚠️ Admin-privileged action — requires an API key with User Management permissions. Not recommended for shared or production Kasm deployments. Look up a Kasm user by id or username."""
             return await get_kasm_user_logic(client, config, user_id=user_id, username=username)
 
         @mcp.tool()
         async def get_kasm_users() -> dict:
-            f"""{_ADMIN_WARNING} List all Kasm users."""
+            """⚠️ Admin-privileged action — requires an API key with User Management permissions. Not recommended for shared or production Kasm deployments. List all Kasm users."""
             return await get_kasm_users_logic(client, config)
 
         @mcp.tool()
         async def logout_kasm_user(user_id: str) -> dict:
-            f"""{_ADMIN_WARNING} Force-logout a Kasm user's active sessions."""
+            """⚠️ Admin-privileged action — requires an API key with User Management permissions. Not recommended for shared or production Kasm deployments. Force-logout a Kasm user's active sessions."""
             return await logout_kasm_user_logic(client, config, user_id=user_id)
 
         @mcp.tool()
         async def add_user_to_group(user_id: str, group_id: str) -> dict:
-            f"""{_ADMIN_WARNING} Add a user to a Kasm group."""
+            """⚠️ Admin-privileged action — requires an API key with User Management permissions. Not recommended for shared or production Kasm deployments. Add a user to a Kasm group."""
             return await add_user_to_group_logic(client, config, user_id=user_id, group_id=group_id)
 
         @mcp.tool()
         async def remove_user_from_group(user_id: str, group_id: str) -> dict:
-            f"""{_ADMIN_WARNING} Remove a user from a Kasm group."""
+            """⚠️ Admin-privileged action — requires an API key with User Management permissions. Not recommended for shared or production Kasm deployments. Remove a user from a Kasm group."""
             return await remove_user_from_group_logic(client, config, user_id=user_id, group_id=group_id)
 
     return mcp

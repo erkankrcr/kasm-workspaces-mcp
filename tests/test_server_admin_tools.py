@@ -30,3 +30,19 @@ def test_admin_tools_present_when_admin_mode_enabled():
         "add_user_to_group", "remove_user_from_group",
     ):
         assert expected in names
+
+
+def test_admin_tools_have_warning_docstrings():
+    """Regression test: docstrings must be string literals, not f-strings."""
+    server = build_server(AsyncMock(), make_config(admin_mode=True))
+    tools = server._tool_manager.list_tools()
+    admin_tools = {t.name: t for t in tools if t.name in (
+        "create_kasm_user", "update_kasm_user", "delete_kasm_user",
+        "get_kasm_user", "get_kasm_users", "logout_kasm_user",
+        "add_user_to_group", "remove_user_from_group",
+    )}
+    expected_warning = "⚠️ Admin-privileged action — requires an API key with User Management permissions. Not recommended for shared or production Kasm deployments."
+    for tool_name, tool in admin_tools.items():
+        assert tool.description, f"Admin tool {tool_name} has empty description"
+        assert tool.description.startswith(expected_warning), \
+            f"Admin tool {tool_name} description does not start with warning.\nGot: {tool.description[:100]}"
