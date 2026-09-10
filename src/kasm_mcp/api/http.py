@@ -7,6 +7,7 @@ APIs" support guidance).
 
 from __future__ import annotations
 
+import asyncio
 from collections.abc import Mapping
 from typing import Any
 from urllib.parse import urljoin
@@ -34,17 +35,26 @@ async def request_json(
     """POST/GET a Kasm endpoint expecting a JSON body back.
 
     Raises KasmAPIError both for HTTP >=400 responses and for HTTP 200
-    responses that carry an ``error_message``/``error`` field — Kasm does
-    both depending on the failure (observed live: "No resources are
-    available..." comes back as a 200 with error_message).
+    responses that carry a non-empty ``error_message``/``error`` field —
+    Kasm does both depending on the failure (observed live: "No resources
+    are available..." comes back as a 200 with error_message). Transport
+    failures (connection errors, timeouts, non-JSON bodies) are also
+    normalized to KasmAPIError so every caller sees one exception type.
     """
     body = {"api_key": api_key, "api_key_secret": api_secret, **(data or {})}
     url = urljoin(api_url.rstrip("/") + "/", path.lstrip("/"))
-    async with session.request(method, url, json=body) as resp:
-        payload = await resp.json()
-        if resp.status >= 400 or "error_message" in payload or "error" in payload:
-            raise KasmAPIError(_error_message(resp.status, payload))
-        return payload
+    try:
+        async with session.request(method, url, json=body) as resp:
+            payload = await resp.json()
+    except KasmAPIError:
+        raise
+    except (aiohttp.ClientError, asyncio.TimeoutError) as e:
+        raise KasmAPIError(f"Request failed: {e}") from e
+    except ValueError as e:
+        raise KasmAPIError(f"Request failed: {e}") from e
+    if resp.status >= 400 or payload.get("error_message") or payload.get("error"):
+        raise KasmAPIError(_error_message(resp.status, payload))
+    return payload
 
 
 async def request_binary(
@@ -59,9 +69,16 @@ async def request_binary(
     """POST a Kasm endpoint expecting a raw binary body back (e.g. a JPEG screenshot)."""
     body = {"api_key": api_key, "api_key_secret": api_secret, **(data or {})}
     url = urljoin(api_url.rstrip("/") + "/", path.lstrip("/"))
-    async with session.request(method, url, json=body) as resp:
-        content_type = resp.headers.get("content-type", "")
-        if resp.status >= 400 or "application/json" in content_type:
-            payload = await resp.json()
-            raise KasmAPIError(_error_message(resp.status, payload))
-        return await resp.read()
+    try:
+        async with session.request(method, url, json=body) as resp:
+            content_type = resp.headers.get("content-type", "")
+            if resp.status >= 400 or "application/json" in content_type:
+                payload = await resp.json()
+                raise KasmAPIError(_error_message(resp.status, payload))
+            return await resp.read()
+    except KasmAPIError:
+        raise
+    except (aiohttp.ClientError, asyncio.TimeoutError) as e:
+        raise KasmAPIError(f"Request failed: {e}") from e
+    except ValueError as e:
+        raise KasmAPIError(f"Request failed: {e}") from e

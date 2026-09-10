@@ -22,7 +22,7 @@ from kasm_mcp.admin_unofficial.client import KasmUnofficialAdminClient
 from kasm_mcp.api.client import KasmAPIClient
 from kasm_mcp.api.http import KasmAPIError
 from kasm_mcp.config import KasmConfig
-from kasm_mcp.security.validation import SecurityError, validate_command
+from kasm_mcp.security.validation import SecurityError, validate_command, validate_path
 
 # ---------------------------------------------------------------------------
 # Scoped-mode logic functions
@@ -108,6 +108,11 @@ async def get_session_screenshot_logic(
     height: int | None = None,
     save_to_file: str | None = None,
 ) -> dict:
+    if save_to_file:
+        try:
+            validate_path(save_to_file, config.allowed_roots, "screenshot save")
+        except SecurityError as e:
+            return {"success": False, "error": str(e), "error_type": "security"}
     try:
         image_bytes = await client.get_kasm_screenshot(kasm_id=kasm_id, user_id=config.user_id, width=width, height=height)
     except KasmAPIError as e:
@@ -340,7 +345,9 @@ async def delete_workspace_image_logic(unofficial_client: KasmUnofficialAdminCli
 # ---------------------------------------------------------------------------
 
 
-def build_server(client: KasmAPIClient, config: KasmConfig) -> FastMCP:
+def build_server(
+    client: KasmAPIClient, config: KasmConfig, unofficial_client: KasmUnofficialAdminClient | None = None
+) -> FastMCP:
     mcp = FastMCP("kasm-workspaces-mcp")
 
     @mcp.tool()
@@ -429,9 +436,12 @@ def build_server(client: KasmAPIClient, config: KasmConfig) -> FastMCP:
             )
 
         @mcp.tool()
-        async def update_kasm_user(user_id: str, **fields: Any) -> dict:
-            """⚠️ Admin-privileged action — requires an API key with User Management permissions. Not recommended for shared or production Kasm deployments. Update fields on an existing Kasm user."""
-            return await update_kasm_user_logic(client, config, user_id=user_id, **fields)
+        async def update_kasm_user(user_id: str, fields: dict[str, Any] | None = None) -> dict:
+            """⚠️ Admin-privileged action — requires an API key with User Management permissions. Not recommended for shared or production Kasm deployments. Update fields on an existing Kasm user.
+
+            Pass Kasm user fields to update as a dict, e.g. {"first_name": "Bob", "last_name": "Smith", "locked": False}.
+            """
+            return await update_kasm_user_logic(client, config, user_id=user_id, **(fields or {}))
 
         @mcp.tool()
         async def delete_kasm_user(user_id: str, force: bool = False) -> dict:
@@ -464,7 +474,7 @@ def build_server(client: KasmAPIClient, config: KasmConfig) -> FastMCP:
             return await remove_user_from_group_logic(client, config, user_id=user_id, group_id=group_id)
 
     if config.unofficial_api:
-        unofficial_client = KasmUnofficialAdminClient(config.api_url, config.api_key, config.api_secret)
+        unofficial_client = unofficial_client or KasmUnofficialAdminClient(config.api_url, config.api_key, config.api_secret)
 
         @mcp.tool()
         async def get_registries() -> dict:
@@ -482,14 +492,22 @@ def build_server(client: KasmAPIClient, config: KasmConfig) -> FastMCP:
             return await delete_registry_logic(unofficial_client, registry_id=registry_id)
 
         @mcp.tool()
-        async def create_workspace_image(image_name: str, friendly_name: str, **fields: Any) -> dict:
-            """⚠️ Unofficial/undocumented Kasm API — may break on any Kasm upgrade. Requires KASM_UNOFFICIAL_API=true. Register a new workspace image."""
-            return await create_workspace_image_logic(unofficial_client, image_name=image_name, friendly_name=friendly_name, **fields)
+        async def create_workspace_image(image_name: str, friendly_name: str, fields: dict[str, Any] | None = None) -> dict:
+            """⚠️ Unofficial/undocumented Kasm API — may break on any Kasm upgrade. Requires KASM_UNOFFICIAL_API=true. Register a new workspace image.
+
+            Pass additional Kasm image fields as a dict, e.g. {"docker_image": "kasmweb/chrome:1.16.0", "cores": 2, "memory": 2147483648}.
+            """
+            return await create_workspace_image_logic(
+                unofficial_client, image_name=image_name, friendly_name=friendly_name, **(fields or {})
+            )
 
         @mcp.tool()
-        async def update_workspace_image(image_id: str, **fields: Any) -> dict:
-            """⚠️ Unofficial/undocumented Kasm API — may break on any Kasm upgrade. Requires KASM_UNOFFICIAL_API=true. Update an existing workspace image's fields."""
-            return await update_workspace_image_logic(unofficial_client, image_id=image_id, **fields)
+        async def update_workspace_image(image_id: str, fields: dict[str, Any] | None = None) -> dict:
+            """⚠️ Unofficial/undocumented Kasm API — may break on any Kasm upgrade. Requires KASM_UNOFFICIAL_API=true. Update an existing workspace image's fields.
+
+            Pass Kasm image fields to update as a dict, e.g. {"friendly_name": "Chrome (Updated)", "cores": 4}.
+            """
+            return await update_workspace_image_logic(unofficial_client, image_id=image_id, **(fields or {}))
 
         @mcp.tool()
         async def delete_workspace_image(image_id: str) -> dict:

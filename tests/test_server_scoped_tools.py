@@ -96,9 +96,28 @@ async def test_get_session_screenshot_logic_saves_to_file(tmp_path):
     client = AsyncMock()
     client.get_kasm_screenshot.return_value = b"\xff\xd8\xff\xe0fake"
     dest = tmp_path / "shot.jpg"
-    result = await get_session_screenshot_logic(client, make_config(), kasm_id="abc", save_to_file=str(dest))
+    config = make_config(allowed_roots=[str(tmp_path)])
+    result = await get_session_screenshot_logic(client, config, kasm_id="abc", save_to_file=str(dest))
     assert result == {"success": True, "kasm_id": "abc", "file_path": str(dest)}
     assert dest.read_bytes() == b"\xff\xd8\xff\xe0fake"
+
+
+@pytest.mark.asyncio
+async def test_get_session_screenshot_logic_rejects_save_path_outside_allowed_roots(tmp_path):
+    allowed_dir = tmp_path / "allowed"
+    allowed_dir.mkdir()
+    outside_dir = tmp_path / "outside"
+    outside_dir.mkdir()
+    dest = outside_dir / "shot.jpg"
+
+    client = AsyncMock()
+    client.get_kasm_screenshot.return_value = b"\xff\xd8\xff\xe0fake"
+    config = make_config(allowed_roots=[str(allowed_dir)])
+    result = await get_session_screenshot_logic(client, config, kasm_id="abc", save_to_file=str(dest))
+    assert result["success"] is False
+    assert result["error_type"] == "security"
+    assert not dest.exists()
+    client.get_kasm_screenshot.assert_not_awaited()
 
 
 @pytest.mark.asyncio

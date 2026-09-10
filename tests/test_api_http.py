@@ -44,6 +44,27 @@ async def test_request_json_raises_on_error_message_even_with_200():
 
 
 @pytest.mark.asyncio
+async def test_request_json_succeeds_with_empty_error_message_field():
+    # Some Kasm responses carry an "error_message" key that's just an empty
+    # string (no actual error) alongside real data; presence of the key alone
+    # must not trigger a failure.
+    with aioresponses() as m:
+        m.post(f"{API_URL}/api/public/get_kasms", status=200, payload={"kasms": [], "error_message": ""})
+        async with aiohttp.ClientSession() as session:
+            result = await request_json(session, API_URL, "key", "secret", "POST", "/api/public/get_kasms", {})
+        assert result == {"kasms": [], "error_message": ""}
+
+
+@pytest.mark.asyncio
+async def test_request_json_wraps_connection_failure_as_kasm_api_error():
+    with aioresponses() as m:
+        m.post(f"{API_URL}/api/public/request_kasm", exception=aiohttp.ClientConnectionError("boom"))
+        async with aiohttp.ClientSession() as session:
+            with pytest.raises(KasmAPIError):
+                await request_json(session, API_URL, "key", "secret", "POST", "/api/public/request_kasm", {})
+
+
+@pytest.mark.asyncio
 async def test_request_binary_returns_raw_bytes():
     with aioresponses() as m:
         m.post(
