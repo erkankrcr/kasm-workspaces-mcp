@@ -2546,6 +2546,17 @@ This bypasses the Kasm API entirely for that one call — treat the SSH
 key with the same care as the Kasm API secret (never log it, never pass
 it as a command-line argument).
 
+**Accepted tradeoff — no host-key verification:** `ssh_exec` connects with
+`known_hosts=None`, disabling SSH host-key checking. This is a deliberate
+choice, not an oversight: Kasm session containers are ephemeral and get a
+fresh host key on every creation, so there's nothing stable to pin
+against, and the intended use is a same-Docker-network `container_ip`
+that isn't reachable from outside that network anyway. This does mean a
+host on the same network path could in principle intercept the
+connection (no MITM protection) — acceptable for the stated same-network
+use case, but do not point `KASM_SSH_HOST_OVERRIDE` at a host reachable
+over an untrusted network without understanding this tradeoff.
+
 ## General rules (apply regardless of mode)
 
 - Secrets come only from environment/files, never from tool-call
