@@ -108,3 +108,42 @@ class KasmAPIClient:
 
     async def get_images(self) -> dict:
         return await self._json("POST", "/api/public/get_images")
+
+    # -- Official admin endpoints (require an API key with User/Group management
+    # permissions; only wired into server.py when KASM_ADMIN_MODE=true) --
+
+    async def create_user(
+        self, *, username: str, password: str, first_name: str = "", last_name: str = "", group_id: str | None = None
+    ) -> dict:
+        target_user: dict[str, Any] = {"username": username, "password": password, "first_name": first_name, "last_name": last_name}
+        data: dict[str, Any] = {"target_user": target_user}
+        if group_id:
+            data["group_id"] = group_id
+        return await self._json("POST", "/api/public/create_user", data)
+
+    async def update_user(self, *, user_id: str, **fields: Any) -> dict:
+        target_user = {"user_id": user_id, **fields}
+        return await self._json("POST", "/api/public/update_user", {"target_user": target_user})
+
+    async def delete_user(self, *, user_id: str, force: bool = False) -> dict:
+        return await self._json("POST", "/api/public/delete_user", {"target_user": {"user_id": user_id}, "force": force})
+
+    async def get_user(self, *, user_id: str | None = None, username: str | None = None) -> dict:
+        target_user: dict[str, Any] = {}
+        if user_id:
+            target_user["user_id"] = user_id
+        if username:
+            target_user["username"] = username
+        return await self._json("POST", "/api/public/get_user", {"target_user": target_user})
+
+    async def get_users(self) -> dict:
+        return await self._json("POST", "/api/public/get_users")
+
+    async def logout_user(self, *, user_id: str) -> dict:
+        return await self._json("POST", "/api/public/logout_user", {"target_user": {"user_id": user_id}})
+
+    async def add_user_to_group(self, *, user_id: str, group_id: str) -> dict:
+        return await self._json("POST", "/api/public/add_user_group", {"target_user": {"user_id": user_id}, "target_group": {"group_id": group_id}})
+
+    async def remove_user_from_group(self, *, user_id: str, group_id: str) -> dict:
+        return await self._json("POST", "/api/public/remove_user_group", {"target_user": {"user_id": user_id}, "target_group": {"group_id": group_id}})
