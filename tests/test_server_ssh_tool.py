@@ -1,4 +1,4 @@
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock
 
 import pytest
 
@@ -7,19 +7,19 @@ from kasm_mcp.server import build_server
 
 
 def make_config(**overrides) -> KasmConfig:
-    base = dict(
-        api_url="https://kasm.example.com",
-        api_key="key",
-        api_secret="secret",
-        user_id="user1",
-        allowed_roots=["/home/kasm-user"],
-        admin_mode=False,
-        unofficial_api=False,
-        ssh_enabled=False,
-        ssh_key_path=None,
-        ssh_user="kasm-user",
-        ssh_host_override=None,
-    )
+    base = {
+        "api_url": "https://kasm.example.com",
+        "api_key": "key",
+        "api_secret": "secret",
+        "user_id": "user1",
+        "allowed_roots": ["/home/kasm-user"],
+        "admin_mode": False,
+        "unofficial_api": False,
+        "ssh_enabled": False,
+        "ssh_key_path": None,
+        "ssh_user": "kasm-user",
+        "ssh_host_override": None,
+    }
     base.update(overrides)
     return KasmConfig(**base)
 

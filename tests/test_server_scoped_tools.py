@@ -4,7 +4,6 @@ import pytest
 
 from kasm_mcp.api.http import KasmAPIError
 from kasm_mcp.config import KasmConfig
-from kasm_mcp.security.validation import SecurityError
 from kasm_mcp.server import (
     create_kasm_session_logic,
     destroy_kasm_session_logic,
@@ -17,19 +16,19 @@ from kasm_mcp.server import (
 
 
 def make_config(**overrides) -> KasmConfig:
-    base = dict(
-        api_url="https://kasm.example.com",
-        api_key="key",
-        api_secret="secret",
-        user_id="user1",
-        allowed_roots=["/home/kasm-user"],
-        admin_mode=False,
-        unofficial_api=False,
-        ssh_enabled=False,
-        ssh_key_path=None,
-        ssh_user="kasm-user",
-        ssh_host_override=None,
-    )
+    base = {
+        "api_url": "https://kasm.example.com",
+        "api_key": "key",
+        "api_secret": "secret",
+        "user_id": "user1",
+        "allowed_roots": ["/home/kasm-user"],
+        "admin_mode": False,
+        "unofficial_api": False,
+        "ssh_enabled": False,
+        "ssh_key_path": None,
+        "ssh_user": "kasm-user",
+        "ssh_host_override": None,
+    }
     base.update(overrides)
     return KasmConfig(**base)
 

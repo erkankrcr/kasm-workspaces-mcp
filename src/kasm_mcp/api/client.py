@@ -98,7 +98,6 @@ class KasmAPIClient:
             "/api/public/exec_command_kasm",
             {"kasm_id": kasm_id, "user_id": user_id, "exec_config": exec_config},
         )
-        return None
 
     async def join_kasm(self, *, share_id: str, user_id: str | None = None) -> dict:
         data: dict[str, Any] = {"share_id": share_id}

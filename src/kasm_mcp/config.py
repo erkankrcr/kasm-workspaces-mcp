@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import Mapping
 
 _REQUIRED = ("KASM_API_URL", "KASM_API_KEY", "KASM_API_SECRET", "KASM_USER_ID")
 _TRUE = {"true", "1", "yes", "on"}

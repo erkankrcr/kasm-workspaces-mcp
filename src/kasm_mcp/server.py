@@ -7,7 +7,9 @@ wires those functions into FastMCP-decorated closures.
 
 from __future__ import annotations
 
+import asyncio
 import base64
+from pathlib import Path
 from typing import Any
 
 # The installed mcp SDK is 2.x, where FastMCP was renamed to MCPServer and
@@ -111,8 +113,7 @@ async def get_session_screenshot_logic(
     except KasmAPIError as e:
         return {"success": False, "error": str(e)}
     if save_to_file:
-        with open(save_to_file, "wb") as f:
-            f.write(image_bytes)
+        await asyncio.to_thread(Path(save_to_file).write_bytes, image_bytes)
         return {"success": True, "kasm_id": kasm_id, "file_path": save_to_file}
     return {"success": True, "kasm_id": kasm_id, "screenshot_base64": base64.b64encode(image_bytes).decode()}
 
