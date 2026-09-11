@@ -8,6 +8,7 @@ from dataclasses import dataclass
 
 _REQUIRED = ("KASM_API_URL", "KASM_API_KEY", "KASM_API_SECRET", "KASM_USER_ID")
 _TRUE = {"true", "1", "yes", "on"}
+_FALSE = {"false", "0", "no", "off"}
 _DEFAULT_DB_PATH = "~/.local/state/kasm-workspaces-mcp/registry.db"
 
 
@@ -34,6 +35,10 @@ class KasmConfig:
 
 def _flag(env: Mapping[str, str], name: str) -> bool:
     return env.get(name, "").strip().lower() in _TRUE
+
+
+def _flag_default_true(env: Mapping[str, str], name: str) -> bool:
+    return env.get(name, "").strip().lower() not in _FALSE
 
 
 def load_config(env: Mapping[str, str] | None = None) -> KasmConfig:
@@ -73,6 +78,6 @@ def load_config(env: Mapping[str, str] | None = None) -> KasmConfig:
         ssh_key_path=ssh_key_path,
         ssh_user=env.get("KASM_SSH_USER", "kasm-user"),
         ssh_host_override=env.get("KASM_SSH_HOST_OVERRIDE") or None,
-        workspace_registry_enabled=_flag(env, "KASM_ENABLE_WORKSPACE_REGISTRY"),
+        workspace_registry_enabled=_flag_default_true(env, "KASM_ENABLE_WORKSPACE_REGISTRY"),
         db_path=os.path.expanduser(env.get("KASM_DB_PATH") or _DEFAULT_DB_PATH),
     )

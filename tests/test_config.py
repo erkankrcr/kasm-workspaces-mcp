@@ -25,17 +25,23 @@ def test_load_config_minimal():
     assert cfg.ssh_user == "kasm-user"
     assert cfg.ssh_key_path is None
     assert cfg.ssh_host_override is None
-    assert cfg.workspace_registry_enabled is False
+    assert cfg.workspace_registry_enabled is True
     assert cfg.db_path == os.path.expanduser("~/.local/state/kasm-workspaces-mcp/registry.db")
 
 
-def test_load_config_workspace_registry_flag_and_custom_db_path():
+def test_load_config_workspace_registry_custom_db_path():
     env = dict(REQUIRED)
-    env["KASM_ENABLE_WORKSPACE_REGISTRY"] = "true"
     env["KASM_DB_PATH"] = "/tmp/custom-registry.db"
     cfg = load_config(env)
     assert cfg.workspace_registry_enabled is True
     assert cfg.db_path == "/tmp/custom-registry.db"
+
+
+def test_load_config_workspace_registry_can_be_explicitly_disabled():
+    env = dict(REQUIRED)
+    env["KASM_ENABLE_WORKSPACE_REGISTRY"] = "false"
+    cfg = load_config(env)
+    assert cfg.workspace_registry_enabled is False
 
 
 def test_load_config_missing_required_raises():
