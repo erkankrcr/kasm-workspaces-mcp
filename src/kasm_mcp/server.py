@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import asyncio
 import base64
+import sqlite3
 from pathlib import Path
 from typing import Any
 
@@ -21,7 +22,10 @@ from mcp.server.mcpserver import MCPServer as FastMCP
 from kasm_mcp.admin_unofficial.client import KasmUnofficialAdminClient
 from kasm_mcp.api.client import KasmAPIClient
 from kasm_mcp.api.http import KasmAPIError
+from kasm_mcp.api.resolution import ImageResolutionError, resolve_image_id
 from kasm_mcp.config import KasmConfig
+from kasm_mcp.registry.db import connect as connect_registry_db
+from kasm_mcp.registry.db import get_workspace_state, upsert_images, upsert_workspace_state
 from kasm_mcp.security.validation import SecurityError, validate_command, validate_path
 
 # ---------------------------------------------------------------------------
@@ -30,11 +34,19 @@ from kasm_mcp.security.validation import SecurityError, validate_command, valida
 
 
 async def create_kasm_session_logic(
-    client: KasmAPIClient, config: KasmConfig, *, image_name: str, group_id: str, enable_sharing: bool = False
+    client: KasmAPIClient, config: KasmConfig, *, image: str, group_id: str, enable_sharing: bool = False
 ) -> dict:
     try:
+        images_result = await client.get_images()
+    except KasmAPIError as e:
+        return {"success": False, "error": str(e)}
+    try:
+        image_id = resolve_image_id(images_result.get("images", []), image)
+    except ImageResolutionError as e:
+        return {"success": False, "error": str(e), "candidates": e.candidates}
+    try:
         result = await client.request_kasm(
-            image_name=image_name, user_id=config.user_id, group_id=group_id, enable_sharing=enable_sharing
+            image_id=image_id, user_id=config.user_id, group_id=group_id, enable_sharing=enable_sharing
         )
     except KasmAPIError as e:
         return {"success": False, "error": str(e)}
@@ -44,6 +56,131 @@ async def create_kasm_session_logic(
         "session_url": result.get("kasm_url"),
         "share_id": result.get("share_id"),
         "status": result.get("status", "created"),
+    }
+
+
+async def connect_workspace_logic(
+    client: KasmAPIClient,
+    config: KasmConfig,
+    conn: sqlite3.Connection,
+    *,
+    identifier: str,
+    command: str | None = None,
+    group_id: str | None = None,
+    working_dir: str | None = None,
+    user: str | None = None,
+) -> dict:
+    try:
+        images_result = await client.get_images()
+    except KasmAPIError as e:
+        return {"success": False, "error": str(e)}
+    images = images_result.get("images", [])
+    upsert_images(conn, images)
+
+    try:
+        image_id = resolve_image_id(images, identifier)
+    except ImageResolutionError as e:
+        return {"success": False, "error": str(e), "candidates": e.candidates}
+
+    state = get_workspace_state(conn, image_id)
+    resolved_group_id = group_id or (state["last_group_id"] if state else None)
+    if not resolved_group_id:
+        return {
+            "success": False,
+            "error": f"No default group known yet for image {image_id!r}; pass group_id once to bootstrap it.",
+            "error_type": "bootstrap_required",
+        }
+
+    kasm_id: str | None = None
+    reused_session = False
+    if state and state.get("last_kasm_id"):
+        try:
+            status_result = await client.get_kasm_status(kasm_id=state["last_kasm_id"], user_id=config.user_id)
+            operational_status = status_result.get("kasm", status_result).get("operational_status")
+        except KasmAPIError:
+            operational_status = None
+        if operational_status == "running":
+            kasm_id = state["last_kasm_id"]
+            reused_session = True
+
+    if kasm_id is None:
+        try:
+            request_result = await client.request_kasm(
+                image_id=image_id, user_id=config.user_id, group_id=resolved_group_id
+            )
+        except KasmAPIError as e:
+            return {"success": False, "error": str(e)}
+        kasm_id = request_result.get("kasm_id")
+        if not kasm_id:
+            return {"success": False, "error": "Kasm API returned no kasm_id from request_kasm."}
+
+    upsert_workspace_state(conn, image_id=image_id, group_id=resolved_group_id, kasm_id=kasm_id)
+
+    response: dict[str, Any] = {
+        "success": True,
+        "kasm_id": kasm_id,
+        "image_id": image_id,
+        "reused_session": reused_session,
+    }
+    if command is not None:
+        response["command_result"] = await execute_kasm_command_logic(
+            client, config, kasm_id=kasm_id, command=command, working_dir=working_dir, user=user
+        )
+    return response
+
+
+_DIAGNOSTIC_FAKE_KASM_ID = "00000000-0000-0000-0000-000000000000"
+
+
+async def _probe_permission(coro: Any) -> tuple[str, str | None]:
+    """Run one lightweight, non-mutating API call and classify the result.
+
+    Returns ("ok", None) on success, ("ok", detail) when the call failed for
+    a reason unrelated to authorization (e.g. a fake id doesn't exist — that
+    means the auth check itself passed), or ("missing", detail) when Kasm
+    reported "Unauthorized".
+    """
+    try:
+        await coro
+        return "ok", None
+    except KasmAPIError as e:
+        message = str(e)
+        if "unauthorized" in message.lower():
+            return "missing", message
+        return "ok", message
+
+
+async def diagnose_permissions_logic(client: KasmAPIClient, config: KasmConfig) -> dict:
+    """Probe which Kasm API-key permissions are present, without creating or
+    modifying anything: real read-only calls for view-type permissions, and
+    calls against a fake kasm_id (which Kasm rejects as "Invalid kasm_id"
+    when authorized, or "Unauthorized" when not) for session-lifecycle
+    permissions that would otherwise need a real session to test.
+    """
+    probes: dict[str, Any] = {
+        "Images View": client.get_images(),
+        "Sessions View": client.get_kasms(),
+        "Users View": client.get_user(user_id=config.user_id),
+        "User + Users Auth Session": client.get_kasm_status(kasm_id=_DIAGNOSTIC_FAKE_KASM_ID, user_id=config.user_id),
+        "Sessions Modify": client.exec_command(kasm_id=_DIAGNOSTIC_FAKE_KASM_ID, user_id=config.user_id, command="true"),
+    }
+    checks: dict[str, dict[str, Any]] = {}
+    for name, coro in probes.items():
+        status, detail = await _probe_permission(coro)
+        checks[name] = {"status": status, "detail": detail} if detail else {"status": status}
+
+    missing = [name for name, result in checks.items() if result["status"] == "missing"]
+    return {
+        "success": True,
+        "checks": checks,
+        "missing_permissions": missing,
+        "all_ok": not missing,
+        "note": (
+            "Fix: Kasm Admin -> Access Management -> API Keys (some versions: Settings -> Developers) "
+            "-> this key -> Permissions tab -> grant the missing permission(s) above. "
+            "A role label like 'Global Admin' shown elsewhere in the UI is not the same as this key's own "
+            "Permissions tab. See docs/API_BEHAVIOR.md#required-api-key-permissions for the full breakdown."
+        ),
     }
 
 
@@ -351,9 +488,15 @@ def build_server(
     mcp = FastMCP("kasm-workspaces-mcp")
 
     @mcp.tool()
-    async def create_kasm_session(image_name: str, group_id: str, enable_sharing: bool = False) -> dict:
-        """Create a new Kasm session. Set enable_sharing=True to get a usable share_id back."""
-        return await create_kasm_session_logic(client, config, image_name=image_name, group_id=group_id, enable_sharing=enable_sharing)
+    async def create_kasm_session(image: str, group_id: str, enable_sharing: bool = False) -> dict:
+        """Create a new Kasm session.
+
+        `image` may be an exact image_id, an exact friendly/docker name, or a
+        unique substring (e.g. "kali" matches "Kali Linux") — resolved live
+        against the current workspace image list, so newly added images work
+        with no code changes. Set enable_sharing=True to get a usable share_id back.
+        """
+        return await create_kasm_session_logic(client, config, image=image, group_id=group_id, enable_sharing=enable_sharing)
 
     @mcp.tool()
     async def destroy_kasm_session(kasm_id: str) -> dict:
@@ -407,6 +550,19 @@ def build_server(
     async def get_available_workspaces() -> dict:
         """List available workspace images."""
         return await get_available_workspaces_logic(client, config)
+
+    @mcp.tool()
+    async def diagnose_permissions() -> dict:
+        """Debug a misconfigured Kasm API key. Probes each permission this server
+        needs (Images View, Sessions View, Users View, User + Users Auth Session,
+        Sessions Modify) with safe, non-mutating calls — nothing is created or
+        changed. Returns which permissions are missing and how to fix them.
+
+        Use this first whenever a tool call fails with "Unauthorized" — it
+        pinpoints exactly which permission box to check on the API key's own
+        Permissions tab in the Kasm admin UI, instead of guessing.
+        """
+        return await diagnose_permissions_logic(client, config)
 
     if config.ssh_enabled:
 
@@ -513,5 +669,27 @@ def build_server(
         async def delete_workspace_image(image_id: str) -> dict:
             """⚠️ Unofficial/undocumented Kasm API — may break on any Kasm upgrade. Requires KASM_UNOFFICIAL_API=true. Delete a workspace image."""
             return await delete_workspace_image_logic(unofficial_client, image_id=image_id)
+
+    if config.workspace_registry_enabled:
+        registry_conn = connect_registry_db(config.db_path)
+
+        @mcp.tool()
+        async def connect_workspace(
+            identifier: str, command: str | None = None, group_id: str | None = None, working_dir: str | None = None
+        ) -> dict:
+            """Requires KASM_ENABLE_WORKSPACE_REGISTRY=true. Find and connect to a Kasm
+            workspace by name (e.g. "kali", "chromium") with no IDs required after the first use.
+
+            Resolves `identifier` live against the current Kasm image list, reuses a
+            still-running session for that image if one exists, otherwise creates one.
+            The group_id used and the resulting kasm_id are remembered in a local SQLite
+            registry, so after one bootstrap call with an explicit group_id, later calls
+            for the same workspace need only `identifier`. Pass `command` to run it in the
+            workspace immediately after connecting.
+            """
+            return await connect_workspace_logic(
+                client, config, registry_conn, identifier=identifier, command=command,
+                group_id=group_id, working_dir=working_dir,
+            )
 
     return mcp

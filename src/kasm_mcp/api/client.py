@@ -41,9 +41,9 @@ class KasmAPIClient:
         )
 
     async def request_kasm(
-        self, *, image_name: str, user_id: str, group_id: str, enable_sharing: bool = False
+        self, *, image_id: str, user_id: str, group_id: str, enable_sharing: bool = False
     ) -> dict:
-        data: dict[str, Any] = {"image_name": image_name, "user_id": user_id, "group_id": group_id}
+        data: dict[str, Any] = {"image_id": image_id, "user_id": user_id, "group_id": group_id}
         if enable_sharing:
             data["enable_sharing"] = True
         return await self._json("POST", "/api/public/request_kasm", data)

@@ -28,16 +28,24 @@ def make_config(**overrides) -> KasmConfig:
         "ssh_key_path": None,
         "ssh_user": "kasm-user",
         "ssh_host_override": None,
+        "workspace_registry_enabled": False,
+        "db_path": "/tmp/test-registry.db",
     }
     base.update(overrides)
     return KasmConfig(**base)
 
 
+IMAGES_FIXTURE = [
+    {"image_id": "img-id-1", "name": "kasmweb/kali-rolling:1.0", "friendly_name": "Kali Linux", "description": "Pentest distro."},
+]
+
+
 @pytest.mark.asyncio
 async def test_create_kasm_session_logic_success():
     client = AsyncMock()
+    client.get_images.return_value = {"images": IMAGES_FIXTURE}
     client.request_kasm.return_value = {"kasm_id": "abc", "kasm_url": "/#/connect/kasm/abc", "share_id": None, "status": "starting"}
-    result = await create_kasm_session_logic(client, make_config(), image_name="img", group_id="grp")
+    result = await create_kasm_session_logic(client, make_config(), image="kali", group_id="grp")
     assert result == {
         "success": True,
         "kasm_id": "abc",
@@ -45,15 +53,26 @@ async def test_create_kasm_session_logic_success():
         "share_id": None,
         "status": "starting",
     }
-    client.request_kasm.assert_awaited_once_with(image_name="img", user_id="user1", group_id="grp", enable_sharing=False)
+    client.request_kasm.assert_awaited_once_with(image_id="img-id-1", user_id="user1", group_id="grp", enable_sharing=False)
 
 
 @pytest.mark.asyncio
 async def test_create_kasm_session_logic_api_error_returns_success_false():
     client = AsyncMock()
+    client.get_images.return_value = {"images": IMAGES_FIXTURE}
     client.request_kasm.side_effect = KasmAPIError("no resources")
-    result = await create_kasm_session_logic(client, make_config(), image_name="img", group_id="grp")
+    result = await create_kasm_session_logic(client, make_config(), image="kali", group_id="grp")
     assert result == {"success": False, "error": "no resources"}
+
+
+@pytest.mark.asyncio
+async def test_create_kasm_session_logic_unresolved_image_returns_candidates():
+    client = AsyncMock()
+    client.get_images.return_value = {"images": IMAGES_FIXTURE}
+    result = await create_kasm_session_logic(client, make_config(), image="nonexistent", group_id="grp")
+    assert result["success"] is False
+    assert result["candidates"] == []
+    client.request_kasm.assert_not_awaited()
 
 
 @pytest.mark.asyncio

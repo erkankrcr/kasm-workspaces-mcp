@@ -16,14 +16,14 @@ def make_config(**overrides) -> KasmConfig:
     return KasmConfig(**base)
 
 
-def test_unofficial_tools_absent_by_default():
+def test_connect_workspace_tool_absent_by_default():
     server = build_server(AsyncMock(), make_config())
     names = {t.name for t in server._tool_manager.list_tools()}
-    assert "get_registries" not in names
+    assert "connect_workspace" not in names
 
 
-def test_unofficial_tools_present_when_enabled():
-    server = build_server(AsyncMock(), make_config(unofficial_api=True))
+def test_connect_workspace_tool_present_when_enabled(tmp_path):
+    config = make_config(workspace_registry_enabled=True, db_path=str(tmp_path / "registry.db"))
+    server = build_server(AsyncMock(), config)
     names = {t.name for t in server._tool_manager.list_tools()}
-    for expected in ("get_registries", "create_registry", "delete_registry", "create_workspace_image", "update_workspace_image", "delete_workspace_image"):
-        assert expected in names
+    assert "connect_workspace" in names

@@ -23,12 +23,12 @@ async def client():
 async def test_request_kasm_without_sharing_omits_enable_sharing_field(client):
     with aioresponses() as m:
         m.post(f"{API_URL}/api/public/request_kasm", payload={"kasm_id": "abc", "kasm_url": "/#/connect/kasm/abc", "share_id": None, "status": "starting"})
-        result = await client.request_kasm(image_name="img123", user_id="user1", group_id="group1")
+        result = await client.request_kasm(image_id="img123", user_id="user1", group_id="group1")
     assert result["kasm_id"] == "abc"
     assert result["share_id"] is None
     sent = m.requests[("POST", aiohttp.client.URL(f"{API_URL}/api/public/request_kasm"))][0].kwargs["json"]
     assert "enable_sharing" not in sent
-    assert sent["image_name"] == "img123"
+    assert sent["image_id"] == "img123"
     assert sent["group_id"] == "group1"
 
 
@@ -36,7 +36,7 @@ async def test_request_kasm_without_sharing_omits_enable_sharing_field(client):
 async def test_request_kasm_with_sharing_sets_enable_sharing_true(client):
     with aioresponses() as m:
         m.post(f"{API_URL}/api/public/request_kasm", payload={"kasm_id": "abc", "share_id": "c20d04e8", "status": "starting"})
-        result = await client.request_kasm(image_name="img123", user_id="user1", group_id="group1", enable_sharing=True)
+        result = await client.request_kasm(image_id="img123", user_id="user1", group_id="group1", enable_sharing=True)
     assert result["share_id"] == "c20d04e8"
     sent = m.requests[("POST", aiohttp.client.URL(f"{API_URL}/api/public/request_kasm"))][0].kwargs["json"]
     assert sent["enable_sharing"] is True

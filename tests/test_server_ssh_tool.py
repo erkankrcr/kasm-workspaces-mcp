@@ -19,6 +19,8 @@ def make_config(**overrides) -> KasmConfig:
         "ssh_key_path": None,
         "ssh_user": "kasm-user",
         "ssh_host_override": None,
+        "workspace_registry_enabled": False,
+        "db_path": "/tmp/test-registry.db",
     }
     base.update(overrides)
     return KasmConfig(**base)

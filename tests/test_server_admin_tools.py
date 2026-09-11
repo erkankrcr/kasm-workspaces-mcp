@@ -9,6 +9,8 @@ def make_config(**overrides) -> KasmConfig:
         "api_url": "https://kasm.example.com", "api_key": "key", "api_secret": "secret", "user_id": "user1",
         "allowed_roots": ["/home/kasm-user"], "admin_mode": False, "unofficial_api": False,
         "ssh_enabled": False, "ssh_key_path": None, "ssh_user": "kasm-user", "ssh_host_override": None,
+        "workspace_registry_enabled": False,
+        "db_path": "/tmp/test-registry.db",
     }
     base.update(overrides)
     return KasmConfig(**base)

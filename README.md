@@ -21,8 +21,14 @@ Required environment variables:
 | Variable | Description |
 |---|---|
 | `KASM_API_URL` | e.g. `https://kasm.example.com` |
-| `KASM_API_KEY` / `KASM_API_SECRET` | from Kasm Admin → Access Management → API Keys |
+| `KASM_API_KEY` / `KASM_API_SECRET` | from Kasm Admin → Access Management → API Keys (some versions: Settings → Developers) |
 | `KASM_USER_ID` | the Kasm user this server acts as (UUID, with hyphens) |
+
+**API keys have no permissions by default** — on the key's own *Permissions*
+tab (not a role label shown elsewhere in the UI), grant at minimum `User`,
+`Users Auth Session`, `Sessions View`, `Sessions Modify`, `Images View` to
+cover this server's default tools. Full per-endpoint breakdown, including
+`KASM_ADMIN_MODE`/`KASM_UNOFFICIAL_API` tools: [docs/API_BEHAVIOR.md](docs/API_BEHAVIOR.md#required-api-key-permissions).
 
 Optional:
 
@@ -35,11 +41,25 @@ Optional:
 | `KASM_SSH_KEY_PATH` | — | required if `KASM_SSH_ENABLED=true` |
 | `KASM_SSH_USER` | `kasm-user` | |
 | `KASM_SSH_HOST_OVERRIDE` | — | use when `container_ip` isn't reachable from where this server runs |
+| `KASM_ENABLE_WORKSPACE_REGISTRY` | `false` | registers `connect_workspace` (find-by-name, auto-create/reuse session, run a command — see below) |
+| `KASM_DB_PATH` | `~/.local/state/kasm-workspaces-mcp/registry.db` | local SQLite cache/state file used by `connect_workspace` |
 
 Any of these can also go in a `.env` file in the directory you run `kasm-mcp`
 from (see `.env.example`) — it's loaded automatically and never overrides a
 variable already set in the real environment (e.g. by an MCP client's own
 `env` config in `.mcp.json`).
+
+## Debugging permission errors
+
+If any tool call fails with `"Unauthorized"`, ask the LLM to run
+**`diagnose_permissions`** (registered by default, no setup needed). It
+probes every permission this server needs — `Images View`, `Sessions
+View`, `Users View`, `User` + `Users Auth Session`, `Sessions Modify` —
+using only safe, non-mutating calls (nothing is created, changed, or
+destroyed) and reports exactly which one(s) are missing, plus where to
+fix them in the Kasm admin UI. See
+[docs/API_BEHAVIOR.md](docs/API_BEHAVIOR.md#required-api-key-permissions)
+for the full per-endpoint permission table this is built from.
 
 ## Run
 
