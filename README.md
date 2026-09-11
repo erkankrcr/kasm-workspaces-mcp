@@ -41,8 +41,12 @@ Optional:
 | `KASM_SSH_KEY_PATH` | — | required if `KASM_SSH_ENABLED=true` |
 | `KASM_SSH_USER` | `kasm-user` | |
 | `KASM_SSH_HOST_OVERRIDE` | — | use when `container_ip` isn't reachable from where this server runs |
-| `KASM_ENABLE_WORKSPACE_REGISTRY` | `false` | registers `connect_workspace` (find-by-name, auto-create/reuse session, run a command — see below) |
+| `KASM_ENABLE_WORKSPACE_REGISTRY` | `false` | registers `connect_workspace` (find-by-name, auto-create/reuse session, run a command — see below). **Recommended: `true`** for day-to-day use — it's the whole point of this server (name a workspace, no IDs to look up), costs nothing when idle (no background process, just a local SQLite file touched only when the tool is called), and is safe to leave on. |
 | `KASM_DB_PATH` | `~/.local/state/kasm-workspaces-mcp/registry.db` | local SQLite cache/state file used by `connect_workspace` |
+
+Enabling (or changing) a flag only takes effect after the MCP client
+reconnects to this server — e.g. Claude Code's `/mcp` command, or a
+restart.
 
 Any of these can also go in a `.env` file in the directory you run `kasm-mcp`
 from (see `.env.example`) — it's loaded automatically and never overrides a
