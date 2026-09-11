@@ -10,7 +10,8 @@ The response never contains stdout/stderr/exit_code — Kasm's own official
 docs' example response is just `{"kasm": {...}, "current_time": "..."}`.
 `execute_kasm_command` in this project reflects that honestly: success
 only means "dispatched," never "ran successfully with this output." Use
-`execute_kasm_command_ssh` (opt-in) if you need real output.
+`execute_kasm_command_ssh` (opt-in) if you need real output — but see
+`docs/BACKLOG.md` first, it's not a reliable fallback in most setups.
 
 ## `get_kasm_screenshot` returns raw JPEG bytes, not JSON
 

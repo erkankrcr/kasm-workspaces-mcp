@@ -570,10 +570,21 @@ def build_server(
         async def execute_kasm_command_ssh(
             kasm_id: str, command: str, working_dir: str | None = None, ssh_host: str | None = None
         ) -> dict:
-            """Run a command via SSH and return real stdout/stderr/exit_code.
+            """⚠️ Backlog / Work In Progress — see docs/BACKLOG.md. Run a command
+            via SSH and return real stdout/stderr/exit_code, instead of the
+            Developer API's fire-and-forget exec.
 
-            Only registered when KASM_SSH_ENABLED=true. Requires the MCP
-            server to have network access to the session's host.
+            Only registered when KASM_SSH_ENABLED=true. Needs BOTH of these,
+            confirmed independently required live (2026-09-11):
+            - Network reachability from wherever this MCP server runs to the
+              container's IP — same-LAN as the Kasm agent host is NOT enough;
+              only reachable from inside the agent host itself, and only on
+              the port KasmVNC listens on (6901 in the tested instance), not 22.
+            - The workspace image must actually run an SSH daemon — stock
+              kasmweb/* images (including a hand-registered Kali one) do not.
+            This will very likely just fail unless you built a custom
+            sshd-enabled image AND run this MCP server where it can reach the
+            Kasm agent's Docker network.
             """
             return await execute_kasm_command_ssh_logic(
                 client, config, kasm_id=kasm_id, command=command, working_dir=working_dir, ssh_host=ssh_host

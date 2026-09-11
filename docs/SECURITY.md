@@ -34,6 +34,16 @@ against.
 
 ## `KASM_SSH_ENABLED=true`
 
+⚠️ **Backlog / Work In Progress — see `docs/BACKLOG.md`.** This flag
+registers a tool that, in most environments, will not actually reach a
+session container: it needs both network reachability from this MCP
+server to the container (not just the same LAN as the Kasm agent host —
+confirmed live 2026-09-11) *and* an SSH daemon running inside the
+workspace image (stock `kasmweb/*` images don't have one). Everything
+below describes what the flag does and its security tradeoffs *if* you
+have both prerequisites — it does not mean the feature is ready for
+general use.
+
 Registers `execute_kasm_command_ssh`. Requires an SSH private key
 (`KASM_SSH_KEY_PATH`) and network reachability to the session container.
 This bypasses the Kasm API entirely for that one call — treat the SSH

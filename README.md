@@ -11,7 +11,7 @@ that means in practice and why it matters.
 ## Install
 
 ```bash
-pip install -e ".[dev]"        # add ".[ssh]" too if you want execute_kasm_command_ssh
+pip install -e ".[dev]"        # add ".[ssh]" too for execute_kasm_command_ssh (⚠️ backlog/WIP — see docs/BACKLOG.md before using)
 ```
 
 ## Configure
@@ -37,7 +37,7 @@ Optional:
 | `KASM_ALLOWED_ROOTS` | `/home/kasm-user` | comma-separated path allowlist |
 | `KASM_ADMIN_MODE` | `false` | registers official user/group management tools |
 | `KASM_UNOFFICIAL_API` | `false` | registers undocumented registry/image tools |
-| `KASM_SSH_ENABLED` | `false` | registers `execute_kasm_command_ssh` |
+| `KASM_SSH_ENABLED` | `false` | registers `execute_kasm_command_ssh` — ⚠️ **backlog/Work In Progress, not a supported feature.** Read [docs/BACKLOG.md](docs/BACKLOG.md) before enabling: it needs both network reachability to the container *and* an sshd running inside it, neither of which this project sets up for you. |
 | `KASM_SSH_KEY_PATH` | — | required if `KASM_SSH_ENABLED=true` |
 | `KASM_SSH_USER` | `kasm-user` | |
 | `KASM_SSH_HOST_OVERRIDE` | — | use when `container_ip` isn't reachable from where this server runs |
