@@ -452,11 +452,11 @@ async def delete_registry_logic(unofficial_client: KasmUnofficialAdminClient, *,
 
 
 async def create_workspace_image_logic(
-    unofficial_client: KasmUnofficialAdminClient, *, image_name: str, friendly_name: str, **fields: Any
+    unofficial_client: KasmUnofficialAdminClient, *, name: str, friendly_name: str, **fields: Any
 ) -> dict:
     try:
-        result = await unofficial_client.create_workspace_image(image_name=image_name, friendly_name=friendly_name, **fields)
-    except KasmAPIError as e:
+        result = await unofficial_client.create_workspace_image(name=name, friendly_name=friendly_name, **fields)
+    except (KasmAPIError, ValueError) as e:
         return {"success": False, "error": str(e)}
     return {"success": True, "image": result.get("image")}
 
@@ -648,13 +648,17 @@ def build_server(
             return await delete_registry_logic(unofficial_client, registry_id=registry_id)
 
         @mcp.tool()
-        async def create_workspace_image(image_name: str, friendly_name: str, fields: dict[str, Any] | None = None) -> dict:
+        async def create_workspace_image(name: str, friendly_name: str, fields: dict[str, Any] | None = None) -> dict:
             """⚠️ Unofficial/undocumented Kasm API — may break on any Kasm upgrade. Requires KASM_UNOFFICIAL_API=true. Register a new workspace image.
 
-            Pass additional Kasm image fields as a dict, e.g. {"docker_image": "kasmweb/chrome:1.16.0", "cores": 2, "memory": 2147483648}.
+            `name` is the docker image reference, e.g. "kasmweb/kali-rolling-desktop:1.18.0-rolling-daily".
+            Pass additional Kasm image fields as a dict, e.g. {"docker_registry": "https://index.docker.io/v1/",
+            "server_id": "...", "cores": 2.0, "memory_bytes": 2147483648, "description": "..."}. Do NOT pass
+            "available", "categories", or "default_category" — confirmed live to crash Kasm's create_image
+            with a 500 (see docs/ADMIN_UNOFFICIAL.md); set those afterward in the Kasm admin UI instead.
             """
             return await create_workspace_image_logic(
-                unofficial_client, image_name=image_name, friendly_name=friendly_name, **(fields or {})
+                unofficial_client, name=name, friendly_name=friendly_name, **(fields or {})
             )
 
         @mcp.tool()

@@ -17,6 +17,12 @@ import aiohttp
 
 from kasm_mcp.api.http import request_json
 
+# Fields that returned HTTP 500 from /api/admin/create_image on a live Kasm
+# instance (2026-09-11), regardless of the correct field name being used —
+# a Kasm-side bug, not a client bug. Rejected client-side with a clear error
+# instead of letting a raw, unhelpful 500 through.
+_CREATE_IMAGE_UNSUPPORTED_FIELDS = {"available", "categories", "default_category"}
+
 
 class KasmUnofficialAdminClient:
     def __init__(self, api_url: str, api_key: str, api_secret: str) -> None:
@@ -54,8 +60,15 @@ class KasmUnofficialAdminClient:
     async def delete_registry(self, *, registry_id: str) -> dict:
         return await self._json("/api/admin/delete_registry", {"target_registry": {"registry_id": registry_id}})
 
-    async def create_workspace_image(self, *, image_name: str, friendly_name: str, **fields: Any) -> dict:
-        target_image = {"image_name": image_name, "friendly_name": friendly_name, **fields}
+    async def create_workspace_image(self, *, name: str, friendly_name: str, **fields: Any) -> dict:
+        bad = _CREATE_IMAGE_UNSUPPORTED_FIELDS & fields.keys()
+        if bad:
+            raise ValueError(
+                f"create_image crashes (HTTP 500) on a live Kasm instance when given: {sorted(bad)}. "
+                "Create without them, then set them afterward via the Kasm admin UI. See "
+                "docs/ADMIN_UNOFFICIAL.md."
+            )
+        target_image = {"name": name, "friendly_name": friendly_name, **fields}
         return await self._json("/api/admin/create_image", {"target_image": target_image})
 
     async def update_workspace_image(self, *, image_id: str, **fields: Any) -> dict:
