@@ -52,6 +52,20 @@ Shipping this as a normal opt-in flag without that caveat would mislead
 most users into thinking it "just works" once `KASM_SSH_ENABLED=true`
 and a key are set.
 
+**Even "SSH into the agent host" isn't one fix — it's per-agent, and
+some agents are deliberately unreachable from each other.** This
+project's multi-server test deployment has separate agent hosts for
+different zones (e.g. a `kasm-server` host on `10.0.20.x` and a
+`kasm-dmz` host on `10.0.50.x`). Confirmed live 2026-09-11: from inside
+the `kasm-server` host (reached over SSH), `ping` and `ssh` to the
+`kasm-dmz` host's IP both hit a hard timeout (100% packet loss, no
+route) — a deliberate DMZ network boundary, not a missing daemon. So
+even an operator with SSH access to *one* agent host cannot assume that
+gets them reachability to sessions running on a *different* agent —
+each agent needs its own verified network path, and some (by design)
+have none from the others. Any future fix here has to be scoped
+per-agent-host, not treated as a single yes/no capability.
+
 **Before promoting this out of backlog**, it needs at least one of:
 - A documented, tested reference setup (e.g. "run this MCP server on
   the agent host" or "here's the exact SSH tunnel command to run
