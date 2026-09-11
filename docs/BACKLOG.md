@@ -66,6 +66,42 @@ each agent needs its own verified network path, and some (by design)
 have none from the others. Any future fix here has to be scoped
 per-agent-host, not treated as a single yes/no capability.
 
+**Root privilege is not the blocker, and neither is reverse SSH — both
+confirmed live 2026-09-11 with dedicated experiments:**
+
+- *"Could we install/run an SSH-like listener without root?"* Yes in
+  principle (run `sshd`/`dropbear` as a non-root user on a port >1024
+  with self-owned host keys and `authorized_keys`, or bring a static
+  no-dependency binary if `openssh-server` isn't installed at all — no
+  package manager or root needed for either). But this doesn't help:
+  dispatched a plain `python3 -m http.server 8899` as the default
+  (non-root) user via `exec_command_kasm` — zero install, zero
+  privilege — and a *direct* connection attempt from this MCP server's
+  host straight to `container_ip:8899` (bypassing the agent entirely)
+  still timed out identically to every other port tried. The blocker is
+  the network path, full stop; the service running inside is irrelevant.
+
+- *"Could the container connect back to us instead (reverse SSH)?"*
+  Tested directly: started a plain TCP listener on this MCP server's
+  own host, then dispatched an outbound probe from inside the container
+  (`... > /dev/tcp/<this-host-LAN-IP>/19999`, no root, no install) via
+  `exec_command_kasm`. Result: **no connection ever arrived** — the
+  container's outbound path doesn't reach this host either. Most likely
+  a deliberate firewall rule (containers get outbound *internet* access
+  for the desktop apps, but not access back into the operator's LAN) —
+  consistent with wanting pentest/Kali sandboxes isolated from the home
+  network, not a bug. Net effect: reverse SSH is blocked in the same
+  direction as forward SSH, for a different (also intentional-looking)
+  reason.
+
+So there are two fully independent barriers, not one: (a) service
+availability inside the container (solvable without root) and (b)
+network reachability to/from the container (not solvable from outside
+the agent host at all, in either direction, in this deployment). Only
+the "run inside/tunnel through the agent host" approach above touches
+barrier (b); nothing this project can dispatch *into* the container
+changes it.
+
 **Before promoting this out of backlog**, it needs at least one of:
 - A documented, tested reference setup (e.g. "run this MCP server on
   the agent host" or "here's the exact SSH tunnel command to run
